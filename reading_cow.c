@@ -51,81 +51,95 @@ void affiche_vache(char* yeux, char langue, int longueur_queue) {
 }
 
 
-typedef struct {
-	int longueur_lignes;
-	int nb_lignes;
-} dimensions_boite;
-
-dimensions_boite recup_dimensions_boite(char* texte, int longueur_max_defaut) {
-	dimensions_boite dimensions;
+int mot_plus_long(char* texte) {
+	int max_longueur = 0;
 	int longueur_mot = 0;
-	int max_longueur = longueur_max_defaut;
-	int lignes = 1;
 
 	for (int i=0; texte[i] != '\0'; i++) {
-		if (texte[i] != ' ') {
-			longueur_mot++;
-		} else {
+		if (texte[i] == ' ') {
 			if (longueur_mot > max_longueur) {
 				max_longueur = longueur_mot;
-				lignes++;
 			}
 			longueur_mot = 0;
+		} else {
+			longueur_mot++;
 		}
 	}
-
-	dimensions.longueur_lignes = MAX(max_longueur, max_longueur);
-	dimensions.nb_lignes = lignes;
-	return dimensions;
+	return max_longueur;
 }
 
 
-void affiche_boite(dimensions_boite dimensions, char* texte) {
-	int pos_debut_mot = 0;
-	int longueur_mot = 0;
+int nb_lignes_boite(char* texte, int max_longueur_ligne) {
+	int nb_lignes = 1;
 	int longueur_ligne = 0;
-	/* int ligne = 0; */
-
-	printf("+");
-	for (int i=0; i<dimensions.longueur_lignes + 2; i++) {
-		printf("—");
-	}
-	printf("+\n");
-
-	printf("|");
+	int longueur_mot = 0;
+	
 	for (int i=0; texte[i] != '\0'; i++) {
-		if (texte[i] != ' ') {
-			longueur_mot++;
-		} else {
-			if (longueur_ligne + longueur_mot <= dimensions.longueur_lignes) {
-				for (int j=0; j<longueur_mot; j++) {
-					printf("%c", texte[pos_debut_mot + j]);
-				}
-				longueur_ligne += longueur_mot + 1;
+		if (texte[i] == ' ') {
+			if (longueur_ligne + longueur_mot >= max_longueur_ligne) {
+				nb_lignes++;
+				longueur_ligne = longueur_mot;
 			} else {
-				for (int j=longueur_ligne; j<dimensions.longueur_lignes + 2; j++) {
-					printf(" ");
-				}
-				printf("|\n|");
-				for (int j=0; j<longueur_mot; j++) {
-					printf("%c", texte[pos_debut_mot + j]);
-				}
-				longueur_ligne = longueur_mot + 1;
-		    }
-
-			printf(" ");
-			pos_debut_mot += longueur_mot + 1;
+				longueur_ligne += longueur_mot + 1;  // +1 pour l'espace
+			}
 			longueur_mot = 0;
+		} else {
+			longueur_mot++;
 		}
 	}
-	for (int j=longueur_ligne; j<dimensions.longueur_lignes + 2; j++) {
-		printf(" ");
-	}
-	printf("|\n");
 
-	printf("+");
-	for (int i=0; i<dimensions.longueur_lignes + 2; i++) printf("—");
-	printf("+\n");
+	return nb_lignes;
+}
+
+
+char* extraire_ligne(char* texte, int max_longueur_ligne) {
+	char* rv_ligne = malloc(sizeof(char) * max_longueur_ligne);
+	char* mot = malloc(sizeof(char) * max_longueur_ligne);
+
+	sscanf(texte, "%s", mot);  // Récupérer le premier mot du texte
+	strcat(rv_ligne, mot);     // len du mot <= max_longueur_ligne donc ça va
+	texte += (sizeof(char) * (strlen(mot) + 1));  // On regarde le mot suivant
+	sscanf(texte, "%s", mot);  // Récupérer le premier mot du texte
+
+	while (strlen(rv_ligne) + strlen(mot) < max_longueur_ligne) {
+		sscanf(texte, "%s", mot);
+		strcat(rv_ligne, " ");
+		strcat(rv_ligne, mot);
+		texte += (sizeof(char) * (strlen(mot) + 1));  // On regarde le mot suivant
+	}
+
+	free(mot);
+	return rv_ligne;
+}
+
+
+char** texte_formate(char* texte, int max_longueur_ligne, int nb_lignes) {
+	// TODO: rajouter des options sur l'alignement vertical
+	char** rv_texte = malloc((sizeof(char*)) * nb_lignes);
+
+	for (int ligne=0; ligne<nb_lignes; ligne++) {
+		rv_texte[ligne] = extraire_ligne(texte, max_longueur_ligne);
+		texte += (sizeof(char) * (strlen(rv_texte[ligne]) + 1));
+	}
+
+	return rv_texte;
+}
+
+
+void affiche_boite(char* texte, int largeur_par_defaut) {
+	int longueur_max_mot = mot_plus_long(texte);
+	int longueur_lignes = MAX(largeur_par_defaut, longueur_max_mot);
+	int nb_lignes = nb_lignes_boite(texte, longueur_lignes);
+	char** texte_par_lignes = texte_formate(texte, longueur_lignes, nb_lignes);
+
+	for (int i=0; i<nb_lignes; i++) {
+		printf("%s\n", texte_par_lignes[i]);
+	}
+
+	for (int i=0; i<nb_lignes; i++) {
+		free(texte_par_lignes[i]);
+	}
+	free(texte_par_lignes);
 }
 
 
@@ -178,10 +192,36 @@ int main(int argc, char* argv[]) {
 		etat_courant = etat_suivant;
 	}
 
+	/* printf("%d\n", nb_lignes_boite(message, 8)); */
 	/* printf("%s\n", message); */
-	/* printf("%d\n", largeur_texte_boite); */
-	dimensions_boite dimensions = recup_dimensions_boite(message, 30);
-	affiche_boite(dimensions, message);
+	/* printf("%lu\n", strlen(message)); */
+	/* char* suite_message = message + ((sizeof(char)) * 5); */
+	/* printf("%s\n", suite_message); */
+	/* printf("%lu\n", strlen(suite_message)); */
+
+	/* /1* char* test1 = "u"; *1/ */
+	/* char* test1 = malloc((sizeof(char)) * 4); */
+	/* char* test2 = malloc((sizeof(char)) * 4); */
+	/* char* test3 = "iu"; */
+	/* strcat(test1, test2); */
+	/* strcat(test1, test3); */
+	/* printf("%s\n", test1); */
+
+	/* int test_lignes = nb_lignes_boite(message, 8); */
+	/* printf("%d\n", test_lignes); */
+	/* char** tableau_texte = texte_formate(message, 8, test_lignes); */
+	/* for (int i=0; i<test_lignes; i++) { */
+	/* 	printf("%s\n", tableau_texte[i]); */
+	/* } */
+
+	affiche_boite(message, 8);
+
 	affiche_vache(yeux, langue, longueur_queue);
+
+	/* for (int i=0; i<test_lignes; i++) { */
+	/* 	free(tableau_texte[i]); */
+	/* } */
+	/* free(tableau_texte); */
+
 	return 0;
 }
