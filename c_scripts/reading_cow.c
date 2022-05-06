@@ -42,7 +42,7 @@ char* genere_queue(int longueur) {
 	}
 	return queue;
 }
- 
+
 
 void affiche_vache(char* yeux, char langue, int longueur_queue) {
 	char* queue = genere_queue(longueur_queue);
@@ -76,22 +76,22 @@ int mot_plus_long(char* texte) {
 int nb_lignes_boite(char* texte, int max_longueur_ligne) {
 	int nb_lignes = 1;
 	int longueur_ligne = 0;
-	int longueur_mot = 0;
-	
-	for (int i=0; texte[i] != '\0'; i++) {
-		if (texte[i] == ' ') {
-			if (longueur_ligne + longueur_mot >= max_longueur_ligne) {
-				nb_lignes++;
-				longueur_ligne = longueur_mot;
-			} else {
-				longueur_ligne += longueur_mot + 1;  // +1 pour l'espace
-			}
-			longueur_mot = 0;
-		} else {
-			longueur_mot++;
-		}
-	}
+	char* mot = malloc(sizeof(char) * max_longueur_ligne);
 
+	/* printf("==>>————<>————-——-—--· ·\n"); */
+	while (strlen(mot) <= strlen(texte)) {
+		sscanf(texte, "%s", mot);
+		if (longueur_ligne + strlen(mot) >= max_longueur_ligne) {
+			nb_lignes++;
+			longueur_ligne = strlen(mot);
+		} else {
+			longueur_ligne += strlen(mot) + 1;
+		}
+		texte += sizeof(char) * (strlen(mot) + 1);  // +1 pour l'espace
+	}
+	/* printf("==>>————<>————-——-—--· ·\n"); */
+
+	free(mot);
 	return nb_lignes;
 }
 
@@ -105,7 +105,9 @@ char* extraire_ligne(char* texte, int max_longueur_ligne) {
 	texte += (sizeof(char) * (strlen(mot) + 1));  // On regarde le mot suivant
 	sscanf(texte, "%s", mot);  // Récupérer le premier mot du texte
 
-	while (strlen(rv_ligne) + strlen(mot) < max_longueur_ligne) {
+	// Pas dépasser la taille max de ligne et s'arrêter à la fin du texte
+	while (strlen(rv_ligne) + strlen(mot) < max_longueur_ligne &&
+			strlen(mot) <= strlen(texte)) {
 		/* printf("%s\n", mot); */
 		strcat(rv_ligne, " ");
 		strcat(rv_ligne, mot);
@@ -250,7 +252,7 @@ int main(int argc, char* argv[]) {
 		etat_courant = etat_suivant;
 	}
 
-	affiche_boite(message, 8, TEXTE_CENTRE);
+	affiche_boite(message, 8, ALLIGNE_GAUCHE);
 
 	affiche_vache(yeux, langue, longueur_queue);
 
