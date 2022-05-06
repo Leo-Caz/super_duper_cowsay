@@ -3,14 +3,18 @@
 #include <string.h>
 #include <unistd.h>
 
+#define MAX(x, y) (((x) > (y)) ? (x) : (y))
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
+
 #define LIRE_OPTION 0
 #define YEUX 1
 #define LANGUE 2
 #define QUEUE 3
 #define MESSAGE 4
 
-#define MAX(x, y) (((x) > (y)) ? (x) : (y))
-#define MIN(x, y) (((x) < (y)) ? (x) : (y))
+#define ALLIGNE_GAUCHE 0
+#define TEXTE_CENTRE   1
+#define ALLIGNE_DROITE 2
 
 
 int est_pair(int n) {  // comment ça % existe ?
@@ -113,24 +117,51 @@ char* extraire_ligne(char* texte, int max_longueur_ligne) {
 }
 
 
-char** texte_formate(char* texte, int max_longueur_ligne, int nb_lignes) {
+char** texte_formate(char* texte, int max_longueur_ligne, int nb_lignes, int allignement) {
 	// TODO: rajouter des options sur l'alignement vertical
-	char** rv_texte = malloc((sizeof(char*)) * nb_lignes);
+	char** rv_texte = malloc(sizeof(char*) * nb_lignes);
+	char* ligne = malloc(sizeof(char) * max_longueur_ligne);
+	char* espaces = malloc(sizeof(char) * max_longueur_ligne);
+	/* int nb_espaces; */
 
-	for (int ligne=0; ligne<nb_lignes; ligne++) {
-		rv_texte[ligne] = extraire_ligne(texte, max_longueur_ligne);
-		texte += (sizeof(char) * (strlen(rv_texte[ligne]) + 1));
+	for (int i=0; i<nb_lignes; i++) {
+		ligne = extraire_ligne(texte, max_longueur_ligne);
+		int nb_espaces = max_longueur_ligne - strlen(ligne);
+		
+		switch (allignement) {
+			case ALLIGNE_GAUCHE:
+				for (int j=0; j<nb_espaces; j++) espaces[j] = ' ';
+				rv_texte[i] = strcat(ligne, espaces);
+				break;
+
+			case TEXTE_CENTRE:
+				for (int j=0; j<(nb_espaces / 2); j++) espaces[j] = ' ';
+				rv_texte[i] = strcat(espaces, ligne);
+				strcpy(espaces, "");
+				for (int j=0; j<((nb_espaces / 2) + (nb_espaces % 2)); j++) espaces[j] = ' ';
+				strcat(rv_texte[i], espaces);
+
+			case ALLIGNE_DROITE:
+				for (int j=0; j<nb_espaces; j++) espaces[j] = ' ';
+				rv_texte[i] = strcat(espaces, ligne);
+				break;
+		}
+
+		strcpy(espaces, "");
+		texte += (sizeof(char) * (strlen(rv_texte[i]) + 1));
 	}
 
+	free(ligne);
+	free(espaces);
 	return rv_texte;
 }
 
 
-void affiche_boite(char* texte, int largeur_par_defaut) {
+void affiche_boite(char* texte, int largeur_par_defaut, int allignement) {
 	int longueur_max_mot = mot_plus_long(texte);
 	int longueur_lignes = MAX(largeur_par_defaut, longueur_max_mot);
 	int nb_lignes = nb_lignes_boite(texte, longueur_lignes);
-	char** texte_par_lignes = texte_formate(texte, longueur_lignes, nb_lignes);
+	char** texte_par_lignes = texte_formate(texte, longueur_lignes, nb_lignes, allignement);
 
 	for (int i=0; i<nb_lignes; i++) {
 		printf("%s\n", texte_par_lignes[i]);
@@ -214,7 +245,7 @@ int main(int argc, char* argv[]) {
 	/* 	printf("%s\n", tableau_texte[i]); */
 	/* } */
 
-	affiche_boite(message, 8);
+	affiche_boite(message, 8, ALLIGNE_DROITE);
 
 	affiche_vache(yeux, langue, longueur_queue);
 
