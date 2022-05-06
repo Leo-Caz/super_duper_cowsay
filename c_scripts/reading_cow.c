@@ -3,15 +3,21 @@
 #include <string.h>
 #include <unistd.h>
 
+// macros utiles (KEEP IT SIMPLE STUPID!!!!)
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
+#define CLAMP(x, min, max) MAX(min, MIN(x, max))
 
+// États de l'automate qui parse les arguments de la ligne de commande
 #define LIRE_OPTION 0
 #define YEUX 1
 #define LANGUE 2
 #define QUEUE 3
 #define MESSAGE 4
+#define BOX_WIDTH 5
+#define TYPE_ALLIGNEMENT 6
 
+// États de l'allignement vertical
 #define ALLIGNE_GAUCHE 0
 #define TEXTE_CENTRE   1
 #define ALLIGNE_DROITE 2
@@ -108,7 +114,6 @@ char* extraire_ligne(char* texte, int max_longueur_ligne) {
 	// Pas dépasser la taille max de ligne et s'arrêter à la fin du texte
 	while (strlen(rv_ligne) + strlen(mot) < max_longueur_ligne &&
 			strlen(mot) <= strlen(texte)) {
-		/* printf("%s\n", mot); */
 		strcat(rv_ligne, " ");
 		strcat(rv_ligne, mot);
 		texte += (sizeof(char) * (strlen(mot) + 1));  // On regarde le mot suivant
@@ -208,6 +213,9 @@ int main(int argc, char* argv[]) {
 	char yeux[] = "OO";
 	char langue = ' ';
 	int longueur_queue = 3;
+	int largeur_boite_defaut = 40;
+	int largeur_boite_modifie = 0;
+	int allignement = ALLIGNE_GAUCHE;
 
 	int etat_courant = LIRE_OPTION;
 	int etat_suivant;
@@ -222,6 +230,12 @@ int main(int argc, char* argv[]) {
 					etat_suivant = LANGUE;
 				} else if (strcmp(argv[i], "--tail") == 0) {
 					etat_suivant = QUEUE;
+				} else if ((strcmp(argv[i], "-w") == 0) ||
+						(strcmp(argv[i], "--width") == 0)) {
+							etat_suivant = BOX_WIDTH;
+				} else if (strcmp(argv[i], "-a") == 0 ||
+						(strcmp(argv[i], "--allign") == 0)) {
+					etat_suivant = TYPE_ALLIGNEMENT;
 				} else {  // aucune option trouvé => message à afficher
 					etat_suivant = MESSAGE;
 					strcpy(message, argv[i]);
@@ -244,6 +258,27 @@ int main(int argc, char* argv[]) {
 				etat_suivant = LIRE_OPTION;
 				break;
 
+			case BOX_WIDTH:
+				sscanf(argv[i], "%i", &largeur_boite_defaut);
+				largeur_boite_modifie = 1;
+				etat_suivant = LIRE_OPTION;
+				break;
+
+			case TYPE_ALLIGNEMENT:
+				if (strcmp(argv[i], "gauche") == 0) {
+					allignement = ALLIGNE_GAUCHE;
+				} else if (strcmp(argv[i], "droite") == 0) {
+					allignement = ALLIGNE_DROITE;
+				} else if (strcmp(argv[i], "centre") == 0) {
+					allignement = TEXTE_CENTRE;
+				} else {
+					printf("Allignement vertical non valide.\n");
+					return 1;
+				}
+				etat_suivant = LIRE_OPTION;
+				break;
+
+			// On ne peut pas mettre d'autres arguments après avoir commencé le message
 			case MESSAGE:
 				strcat(message, argv[i]);
 				strcat(message, " ");
@@ -252,7 +287,17 @@ int main(int argc, char* argv[]) {
 		etat_courant = etat_suivant;
 	}
 
-	affiche_boite(message, 8, ALLIGNE_GAUCHE);
+	int largeur_boite;
+	int mot_long_max = mot_plus_long(message);
+	int longueur_message = strlen(message);
+
+	if (largeur_boite_modifie == 1) {
+		largeur_boite = MAX(largeur_boite_defaut, mot_long_max);
+	} else {
+		largeur_boite = CLAMP(longueur_message, mot_long_max, largeur_boite_defaut);
+	}
+
+	affiche_boite(message, largeur_boite, allignement);
 
 	affiche_vache(yeux, langue, longueur_queue);
 
