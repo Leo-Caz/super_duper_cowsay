@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+/* #include <unistd.h> */
+#include <time.h>
 
 // macros utiles (KEEP IT SIMPLE STUPID!!!!)
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
@@ -34,6 +35,16 @@ int est_pair(int n) {  // comment ça % existe ?
 		return (est_pair(-n));
 	} else {
 		return (est_pair(n - 2));
+	}
+}
+
+
+void wait(int duree) {  // duree en milisecondes
+	int temps_ecoule = 0;
+	clock_t temps_precedent = clock();
+	while (temps_ecoule < duree) {
+		clock_t delta_time = clock() - temps_precedent;
+		temps_ecoule = delta_time * 1000 / CLOCKS_PER_SEC;
 	}
 }
 
@@ -106,14 +117,17 @@ int nb_lignes_boite(char* texte, int max_longueur_ligne) {
 
 	/* printf("==>>————<>————-——-—--· ·\n"); */
 	while (strlen(mot) <= strlen(texte)) {
-		sscanf(texte, "%s", mot);
-		if (longueur_ligne + strlen(mot) > max_longueur_ligne) {
+		if (longueur_ligne + strlen(mot) >= max_longueur_ligne) {
 			nb_lignes++;
+			printf("-<==>-\n");
 			longueur_ligne = strlen(mot);
 		} else {
 			longueur_ligne += strlen(mot) + 1;
 		}
 		texte += sizeof(char) * (strlen(mot) + 1);  // +1 pour l'espace
+		printf("%s\n", mot);
+		printf("%lu | %lu\n\n", strlen(mot), strlen(texte));
+		sscanf(texte, "%s", mot);
 	}
 	/* printf("==>>————<>————-——-—--· ·\n"); */
 
@@ -201,8 +215,14 @@ char** texte_formate(char* texte, int max_longueur_ligne, int nb_lignes, int all
 				strcpy(ligne, tmp);
 				rv_texte[i] = strcat(ligne, espaces);
 				break;
+
+			default:
+				printf("Ok y'a eu un putain de problème sur l'allignement vertical");
+				break;
 		}
 
+		/* GOTOXY(0, 20); */
+		/* printf("%s|\n", texte); */
 		texte += (sizeof(char) * (nb_caracteres_ligne + 1));
 	}
 
@@ -232,6 +252,8 @@ void affiche_boite(char* texte, int largeur_par_defaut, int allignement) {
 	int longueur_lignes = MAX(largeur_par_defaut, longueur_max_mot);
 	int nb_lignes = nb_lignes_boite(texte, longueur_lignes);
 	char** texte_par_lignes = texte_formate(texte, longueur_lignes, nb_lignes, allignement);
+
+	/* printf("%s\n", texte); */
 
 	printf("+");
 	for (int i=0; i<largeur_par_defaut; i++) printf("-");
@@ -292,7 +314,6 @@ int main(int argc, char* argv[]) {
 				break;
 
 			case LANGUE:
-				/* langue = *argv[i]; */
 				strcpy(langue, argv[i]);
 				etat_suivant = LIRE_OPTION;
 				break;
@@ -335,17 +356,30 @@ int main(int argc, char* argv[]) {
 	int pos_vache = nb_lignes_boite(message, largeur_boite_finale) + 3;
 
 	int largeur_boite_anime;
-	message[strlen(message) - 1] = '\0';
+	/* message[strlen(message) - 22] = '\0'; */
+	printf("%lu\n", strlen(message));
 	char* message_anime = malloc(sizeof(char) * strlen(message));
-	for (int i=0; message[i] != '\0'; i++) {
-		UPDATE;
-		sleep(1);
-		message_anime[i] = message[i];
 
-		largeur_boite_anime = largeur_boite(message_anime, largeur_boite_modifie, largeur_boite_defaut);
-		affiche_boite(message_anime, largeur_boite_anime, allignement);
-		affiche_vache(yeux, langue, longueur_queue, 0, pos_vache);
-	}
+	/* for (int i=0; message[i] != '\0'; i++) { */
+	/* 	UPDATE; */
+	/* 	/1* sleep(1); *1/ */
+	/* 	wait(50); */
+	/* 	message_anime[i] = message[i]; */
+
+	/* 	GOTOXY(0, 0); */
+	/* 	largeur_boite_anime = largeur_boite(message_anime, largeur_boite_modifie, largeur_boite_defaut); */
+	/* 	affiche_boite(message_anime, largeur_boite_anime, allignement); */
+	/* 	affiche_vache(yeux, langue, longueur_queue, 0, pos_vache); */
+
+	/* 	GOTOXY(0, 20); */
+	/* 	/1* printf("%s\n", message_anime); *1/ */
+	/* 	printf("%d\n", largeur_boite_anime); */
+	/* } */
+
+	/* printf("%s\n", message); */
+	affiche_boite(message, largeur_boite_finale, allignement);
+	printf("%d\n", pos_vache);
+	/* affiche_vache(yeux, langue, longueur_queue, 0, pos_vache); */
 
 	return 0;
 }
