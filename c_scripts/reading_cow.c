@@ -7,6 +7,8 @@
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 #define CLAMP(x, min, max) MAX(min, MIN(x, max))
+#define UPDATE printf("\033[H\033[J")
+#define GOTOXY(x, y) printf("\033[%d;%dH", y, x)
 
 // États de l'automate qui parse les arguments de la ligne de commande
 #define LIRE_OPTION 0
@@ -50,13 +52,31 @@ char* genere_queue(int longueur) {
 }
 
 
-void affiche_vache(char* yeux, char langue, int longueur_queue) {
+void affiche_vache(char* yeux, char* langue, int longueur_queue, int pos_x, int pos_y) {
 	char* queue = genere_queue(longueur_queue);
-    printf("        \\   ^__^\n\
-         \\  (%s)\\_______\n\
-            (__)\\       )%s\n\
-             %c  ||----w |\n\
-                ||     ||\n", yeux, queue, langue);
+	char* tableau_vache[11] = {
+		"\\   ^__^\n",
+        " \\  (",
+		yeux,
+		")\\_______\n",
+        "    (__)\\       )",
+		queue,
+		"\n",
+        "     ",
+		langue,
+		" ||----w |\n",
+        "        ||     ||\n"
+	};
+
+	GOTOXY(pos_x, pos_y);
+	for (int i=0; i<11; i++) {
+		printf("%s", tableau_vache[i]);
+		if (tableau_vache[i][strlen(tableau_vache[i] + 1)] == '\n') {
+			pos_y++;
+			GOTOXY(pos_x, pos_y);
+		}
+	}
+
 	free(queue);
 }
 
@@ -120,7 +140,7 @@ char* extraire_ligne(char* texte, int max_longueur_ligne) {
 		sscanf(texte, "%s", mot);
 	}
 
-	// Free ce pointeur = crash
+	// Free ce pointeur créé avec malloc = crash, je sais pas pourquoi
 	/* free(mot); */
 	return rv_ligne;
 }
@@ -135,6 +155,11 @@ char** texte_formate(char* texte, int max_longueur_ligne, int nb_lignes, int all
 		char* ligne = extraire_ligne(texte, max_longueur_ligne);
 		int nb_caracteres_ligne = strlen(ligne);
 		int nb_espaces = max_longueur_ligne - nb_caracteres_ligne;
+
+		for (int j=0; j<max_longueur_ligne; j++) {
+			espaces[j] = '\0';
+			tmp[j] = '\0';
+		}
 		
 		switch (allignement) {
 			case ALLIGNE_GAUCHE:
@@ -178,17 +203,27 @@ char** texte_formate(char* texte, int max_longueur_ligne, int nb_lignes, int all
 				break;
 		}
 
-		for (int j=0; j<max_longueur_ligne; j++) {
-			espaces[j] = '\0';
-			tmp[j] = '\0';
-		}
 		texte += (sizeof(char) * (nb_caracteres_ligne + 1));
 	}
 
-	// Free ce pointeur = crash
+	// Free ce pointeur créé avec malloc = crash, je sais pas pourquoi
 	/* free(tmp); */
 	free(espaces);
 	return rv_texte;
+}
+
+
+int largeur_boite(char* texte, int longueur_modifie, int longueur_defaut) {
+	int longueur_texte = strlen(texte);
+	int mot_long_max = mot_plus_long(texte);
+	int largeur_boite_finale;
+	if (longueur_modifie == 1) {
+		largeur_boite_finale = MAX(longueur_defaut, mot_long_max);
+	} else {
+		largeur_boite_finale = CLAMP(longueur_texte, mot_long_max, longueur_defaut);
+	}
+
+	return largeur_boite_finale;
 }
 
 
@@ -218,8 +253,8 @@ void affiche_boite(char* texte, int largeur_par_defaut, int allignement) {
 
 int main(int argc, char* argv[]) {
 	char message[250];
-	char yeux[] = "OO";
-	char langue = ' ';
+	char yeux[3] = "OO\0";
+	char langue[3] = "  \0";
 	int longueur_queue = 3;
 	int largeur_boite_defaut = 40;
 	int largeur_boite_modifie = 0;
@@ -257,7 +292,8 @@ int main(int argc, char* argv[]) {
 				break;
 
 			case LANGUE:
-				langue = *argv[i];
+				/* langue = *argv[i]; */
+				strcpy(langue, argv[i]);
 				etat_suivant = LIRE_OPTION;
 				break;
 
@@ -295,20 +331,21 @@ int main(int argc, char* argv[]) {
 		etat_courant = etat_suivant;
 	}
 
-	message[strlen(message)-1] = '\0';
-	int largeur_boite;
-	int mot_long_max = mot_plus_long(message);
-	int longueur_message = strlen(message);
+	int largeur_boite_finale = largeur_boite(message, largeur_boite_modifie, largeur_boite_defaut);
+	int pos_vache = nb_lignes_boite(message, largeur_boite_finale) + 3;
 
-	if (largeur_boite_modifie == 1) {
-		largeur_boite = MAX(largeur_boite_defaut, mot_long_max);
-	} else {
-		largeur_boite = CLAMP(longueur_message, mot_long_max, largeur_boite_defaut);
+	int largeur_boite_anime;
+	message[strlen(message) - 1] = '\0';
+	char* message_anime = malloc(sizeof(char) * strlen(message));
+	for (int i=0; message[i] != '\0'; i++) {
+		UPDATE;
+		sleep(1);
+		message_anime[i] = message[i];
+
+		largeur_boite_anime = largeur_boite(message_anime, largeur_boite_modifie, largeur_boite_defaut);
+		affiche_boite(message_anime, largeur_boite_anime, allignement);
+		affiche_vache(yeux, langue, longueur_queue, 0, pos_vache);
 	}
-
-	affiche_boite(message, largeur_boite, allignement);
-
-	affiche_vache(yeux, langue, longueur_queue);
 
 	return 0;
 }
