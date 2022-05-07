@@ -87,7 +87,7 @@ int nb_lignes_boite(char* texte, int max_longueur_ligne) {
 	/* printf("==>>————<>————-——-—--· ·\n"); */
 	while (strlen(mot) <= strlen(texte)) {
 		sscanf(texte, "%s", mot);
-		if (longueur_ligne + strlen(mot) >= max_longueur_ligne) {
+		if (longueur_ligne + strlen(mot) > max_longueur_ligne) {
 			nb_lignes++;
 			longueur_ligne = strlen(mot);
 		} else {
@@ -120,7 +120,8 @@ char* extraire_ligne(char* texte, int max_longueur_ligne) {
 		sscanf(texte, "%s", mot);
 	}
 
-	free(mot);
+	// Free ce pointeur = crash
+	/* free(mot); */
 	return rv_ligne;
 }
 
@@ -128,6 +129,7 @@ char* extraire_ligne(char* texte, int max_longueur_ligne) {
 char** texte_formate(char* texte, int max_longueur_ligne, int nb_lignes, int allignement) {
 	char** rv_texte = malloc(sizeof(char*) * nb_lignes);
 	char* espaces = malloc(sizeof(char) * max_longueur_ligne);
+	char* tmp = malloc(sizeof(char) * max_longueur_ligne);
 
 	for (int i=0; i<nb_lignes; i++) {
 		char* ligne = extraire_ligne(texte, max_longueur_ligne);
@@ -148,12 +150,10 @@ char** texte_formate(char* texte, int max_longueur_ligne, int nb_lignes, int all
 				}
 				// Échanger les pointeurs pour que strcat agisse sur le bon pointeur
 				// oui je sais c'est moche mais je savais pas faire autrement.
-				char* tmp1 = malloc(sizeof(char) * max_longueur_ligne);
-				strcpy(tmp1, espaces);
+				strcpy(tmp, espaces);
 				strcpy(espaces, ligne);
-				strcpy(ligne, tmp1);
+				strcpy(ligne, tmp);
 				rv_texte[i] = strcat(ligne, espaces);
-				free(tmp1);
 
 				for (int j=0; j<max_longueur_ligne; j++) {
 					espaces[j] = '\0';
@@ -171,21 +171,22 @@ char** texte_formate(char* texte, int max_longueur_ligne, int nb_lignes, int all
 				}
 				// Échanger les pointeurs pour que strcat agisse sur le bon pointeur
 				// Oui c'est toujours aussi moche.
-				char* tmp2 = malloc(sizeof(char) * max_longueur_ligne);
-				strcpy(tmp2, espaces);
+				strcpy(tmp, espaces);
 				strcpy(espaces, ligne);
-				strcpy(ligne, tmp2);
+				strcpy(ligne, tmp);
 				rv_texte[i] = strcat(ligne, espaces);
-				free(tmp2);
 				break;
 		}
 
 		for (int j=0; j<max_longueur_ligne; j++) {
 			espaces[j] = '\0';
+			tmp[j] = '\0';
 		}
 		texte += (sizeof(char) * (nb_caracteres_ligne + 1));
 	}
 
+	// Free ce pointeur = crash
+	/* free(tmp); */
 	free(espaces);
 	return rv_texte;
 }
@@ -197,13 +198,20 @@ void affiche_boite(char* texte, int largeur_par_defaut, int allignement) {
 	int nb_lignes = nb_lignes_boite(texte, longueur_lignes);
 	char** texte_par_lignes = texte_formate(texte, longueur_lignes, nb_lignes, allignement);
 
-	for (int i=0; i<nb_lignes; i++) {
-		printf("|%s|\n", texte_par_lignes[i]);
-	}
+	printf("+");
+	for (int i=0; i<largeur_par_defaut; i++) printf("-");
+	printf("+\n");
 
 	for (int i=0; i<nb_lignes; i++) {
+		printf("¦%s¦\n", texte_par_lignes[i]);
 		free(texte_par_lignes[i]);
+		/* printf("==>>————<>————-——-—--· ·\n"); */
 	}
+
+	printf("+");
+	for (int i=0; i<largeur_par_defaut; i++) printf("-");
+	printf("+\n");
+
 	free(texte_par_lignes);
 }
 
@@ -287,6 +295,7 @@ int main(int argc, char* argv[]) {
 		etat_courant = etat_suivant;
 	}
 
+	message[strlen(message)-1] = '\0';
 	int largeur_boite;
 	int mot_long_max = mot_plus_long(message);
 	int longueur_message = strlen(message);
