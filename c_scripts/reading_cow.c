@@ -82,11 +82,13 @@ void affiche_vache(char* yeux, char* langue, int longueur_queue, int pos_x, int 
 	GOTOXY(pos_x, pos_y);
 	for (int i=0; i<11; i++) {
 		printf("%s", tableau_vache[i]);
+		// Si le dernier caractère est un '\n'
 		if (tableau_vache[i][strlen(tableau_vache[i] + 1)] == '\n') {
 			pos_y++;
 			GOTOXY(pos_x, pos_y);
 		}
 	}
+	printf("\n");
 
 	free(queue);
 }
@@ -158,14 +160,13 @@ char* extraire_ligne(char* texte, int max_longueur_ligne) {
 	for (int i=0; i<longueur_ligne - 1; i++) {
 		rv_ligne[i] = texte[i];
 
-		// finir proprement la dernière ligne
+		// finir "proprement" la dernière ligne
 		if (strlen(texte + (sizeof(char) * i)) == 1) {
 			rv_ligne[i] = '\0';
 			break;
 		}
 	}
 
-	/* printf("%d: %s|\n", longueur_ligne, rv_ligne); */
 	return rv_ligne;
 }
 
@@ -175,6 +176,11 @@ void allignement_vertical(char* ligne, int max_longueur_ligne, int allignemet) {
 	int nb_caracteres_ligne = strlen(ligne);
 	int nb_espaces = max_longueur_ligne - nb_caracteres_ligne;
 
+	// Why?!?!?!?!?!
+	for (int i=0; i<max_longueur_ligne; i++) {
+		espaces[i] = '\0';
+	}
+
 	switch (allignemet) {
 		case ALLIGNE_GAUCHE:
 			for (int i=nb_caracteres_ligne; i<max_longueur_ligne; i++) {
@@ -183,7 +189,7 @@ void allignement_vertical(char* ligne, int max_longueur_ligne, int allignemet) {
 			break;
 
 		case TEXTE_CENTRE:
-			for (int i=0; i<(nb_espaces / 2) + (nb_espaces % 2); i++) {
+			for (int i=0; i<(nb_espaces / 2); i++) {
 				espaces[i] = ' ';
 			}
 			strcat(espaces, ligne);
@@ -256,6 +262,7 @@ int main(int argc, char* argv[]) {
 	char message[250];
 	char yeux[3] = "OO\0";
 	char langue[3] = "  \0";
+	int langue_modifie = 0;
 	int longueur_queue = 3;
 	int largeur_boite_defaut = 40;
 	int largeur_boite_modifie = 0;
@@ -294,6 +301,7 @@ int main(int argc, char* argv[]) {
 
 			case LANGUE:
 				strcpy(langue, argv[i]);
+				langue_modifie = 1;
 				etat_suivant = LIRE_OPTION;
 				break;
 
@@ -331,16 +339,32 @@ int main(int argc, char* argv[]) {
 		etat_courant = etat_suivant;
 	}
 
-	int longueur_lignes = largeur_boite(message, largeur_boite_modifie, largeur_boite_defaut);
-	int nb_lignes = nb_lignes_boite(message, longueur_lignes);
+	int total_lignes_message = largeur_boite(message, largeur_boite_modifie, largeur_boite_defaut);
+	int pos_y_vache_finale = nb_lignes_boite(message, total_lignes_message) + 3;
+	char* message_anime = malloc(sizeof(char) * strlen(message));
+	for (int i=0; i<strlen(message); i++) {
+		UPDATE;
+		message_anime[i] = message[i];
 
-	char** texte_formate = texte_dans_boite(message, nb_lignes, longueur_lignes, allignement);
-	affiche_boite(texte_formate, nb_lignes);
+		int longueur_lignes = largeur_boite(message_anime, largeur_boite_modifie, largeur_boite_defaut);
+		int nb_lignes = nb_lignes_boite(message_anime, longueur_lignes);
 
-	for (int i=0; i<nb_lignes; i++) {
-		free(texte_formate[i]);
+		char** texte_formate = texte_dans_boite(message_anime, nb_lignes, longueur_lignes, allignement);
+		affiche_boite(texte_formate, nb_lignes);
+
+		if (langue_modifie == 0) {
+			/* langue = {message[i], ' ', '\0'}; */
+			langue[0] = message[i];
+		}
+		affiche_vache(yeux, langue, longueur_queue, 9, pos_y_vache_finale);
+
+		for (int j=0; j<nb_lignes; j++) {
+			free(texte_formate[j]);
+		}
+		free(texte_formate);
+
+		wait(50);
 	}
-	free(texte_formate);
 
 	return 0;
 }
