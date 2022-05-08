@@ -19,6 +19,7 @@
 #define MESSAGE 4
 #define BOX_WIDTH 5
 #define TYPE_ALLIGNEMENT 6
+#define VITESSE_ANIMATION 7
 
 // États de l'allignement vertical
 #define ALLIGNE_GAUCHE 0
@@ -258,15 +259,41 @@ void affiche_boite(char** texte_par_lignes, int nb_lignes) {
 }
 
 
-int main(int argc, char* argv[]) {
-	char message[250];
-	char yeux[3] = "OO\0";
-	char langue[3] = "  \0";
-	int langue_modifie = 0;
-	int longueur_queue = 3;
-	int largeur_boite_defaut = 40;
-	int largeur_boite_modifie = 0;
-	int allignement = ALLIGNE_GAUCHE;
+typedef struct {
+	char* message;
+	char yeux[3];
+	char langue[3];
+	int langue_modifie;
+	int longueur_queue;
+	int largeur_boite;
+	int largeur_boite_modifie;
+	int allignement;
+	int vitesse_animation;
+} animation_parameters;
+
+
+void parse_arguments_ligne_commande(animation_parameters* options_anim, int argc, char** argv) {
+	// On définit la taille de la chaine de caractère du message pour
+	// être sûr de pas faire un buffer-overflow
+	int longueur_message_max = 0;
+	for (int i=1; i<argc; i++) {
+		longueur_message_max += strlen(argv[i]) + 1;  // +1 pour l'espace
+	}
+
+	options_anim->message = malloc(sizeof(char) * longueur_message_max);
+	for (int i=0; i<longueur_message_max; i++) {
+		options_anim->message[i] = '\0';
+	}
+
+	// Valeurs par défaut
+	strcpy(options_anim->yeux, "00\0");
+	strcpy(options_anim->langue, "  \0");
+	options_anim->langue_modifie = 0;
+	options_anim->longueur_queue = 3;
+	options_anim->largeur_boite = 40;
+	options_anim->largeur_boite_modifie = 0;
+	options_anim->allignement = ALLIGNE_GAUCHE;
+	options_anim->vitesse_animation = 50;
 
 	int etat_courant = LIRE_OPTION;
 	int etat_suivant;
@@ -275,96 +302,126 @@ int main(int argc, char* argv[]) {
 	for (int i=1; i < argc; i++) {
 		switch (etat_courant) {
 			case LIRE_OPTION:
-				if (strcmp(argv[i], "-e") == 0 || strcmp(argv[i], "--eyes") == 0) {
+				if (strcmp(argv[i], "-e") == 0 ||
+						strcmp(argv[i], "--eyes") == 0) {
 					etat_suivant = YEUX;
-				} else if (strcmp(argv[i], "-T") == 0) {
+				} else if ((strcmp(argv[i], "-T") == 0) ||
+						(strcmp(argv[i], "--toungue") == 0)) {
 					etat_suivant = LANGUE;
-				} else if (strcmp(argv[i], "--tail") == 0) {
+				} else if ((strcmp(argv[i], "-t") == 0) || 
+						(strcmp(argv[i], "--tail") == 0)) {
 					etat_suivant = QUEUE;
 				} else if ((strcmp(argv[i], "-w") == 0) ||
 						(strcmp(argv[i], "--width") == 0)) {
-							etat_suivant = BOX_WIDTH;
+					etat_suivant = BOX_WIDTH;
 				} else if (strcmp(argv[i], "-a") == 0 ||
 						(strcmp(argv[i], "--allign") == 0)) {
 					etat_suivant = TYPE_ALLIGNEMENT;
+				} else if (strcmp(argv[i], "-v") == 0 ||
+						(strcmp(argv[i], "--vitesse") == 0)) {
+					etat_suivant = VITESSE_ANIMATION;
 				} else {  // aucune option trouvé => message à afficher
 					etat_suivant = MESSAGE;
-					strcpy(message, argv[i]);
-					strcat(message, " ");
+					strcpy(options_anim->message, argv[i]);
+					strcat(options_anim->message, " ");
 				}
 				break;
 
 			case YEUX:
-				strcpy(yeux, argv[i]);
+				strcpy(options_anim->yeux, argv[i]);
 				etat_suivant = LIRE_OPTION;
 				break;
 
 			case LANGUE:
-				strcpy(langue, argv[i]);
-				langue_modifie = 1;
+				strcpy(options_anim->langue, argv[i]);
+				options_anim->langue_modifie = 1;
 				etat_suivant = LIRE_OPTION;
 				break;
 
 			case QUEUE:
-				sscanf(argv[i], "%i", &longueur_queue);
+				sscanf(argv[i], "%i", &options_anim->longueur_queue);
 				etat_suivant = LIRE_OPTION;
 				break;
 
 			case BOX_WIDTH:
-				sscanf(argv[i], "%i", &largeur_boite_defaut);
-				largeur_boite_modifie = 1;
+				sscanf(argv[i], "%i", &options_anim->largeur_boite);
+				options_anim->largeur_boite_modifie = 1;
 				etat_suivant = LIRE_OPTION;
 				break;
 
 			case TYPE_ALLIGNEMENT:
 				if (strcmp(argv[i], "gauche") == 0) {
-					allignement = ALLIGNE_GAUCHE;
+					options_anim->allignement = ALLIGNE_GAUCHE;
 				} else if (strcmp(argv[i], "droite") == 0) {
-					allignement = ALLIGNE_DROITE;
+					options_anim->allignement = ALLIGNE_DROITE;
 				} else if (strcmp(argv[i], "centre") == 0) {
-					allignement = TEXTE_CENTRE;
+					options_anim->allignement = TEXTE_CENTRE;
 				} else {
 					printf("Allignement vertical non valide.\n");
-					return 1;
 				}
+				etat_suivant = LIRE_OPTION;
+				break;
+
+			case VITESSE_ANIMATION:
+				sscanf(argv[i], "%i", &options_anim->vitesse_animation);
 				etat_suivant = LIRE_OPTION;
 				break;
 
 			// On ne peut pas mettre d'autres arguments après avoir commencé le message
 			case MESSAGE:
-				strcat(message, argv[i]);
-				strcat(message, " ");
+				strcat(options_anim->message, argv[i]);
+				strcat(options_anim->message, " ");
 				break;
 		}
 		etat_courant = etat_suivant;
 	}
 
-	int total_lignes_message = largeur_boite(message, largeur_boite_modifie, largeur_boite_defaut);
-	int pos_y_vache_finale = nb_lignes_boite(message, total_lignes_message) + 3;
-	char* message_anime = malloc(sizeof(char) * strlen(message));
-	for (int i=0; i<strlen(message); i++) {
-		UPDATE;
-		message_anime[i] = message[i];
+}
 
-		int longueur_lignes = largeur_boite(message_anime, largeur_boite_modifie, largeur_boite_defaut);
-		int nb_lignes = nb_lignes_boite(message_anime, longueur_lignes);
 
-		char** texte_formate = texte_dans_boite(message_anime, nb_lignes, longueur_lignes, allignement);
-		affiche_boite(texte_formate, nb_lignes);
+int main(int argc, char* argv[]) {
+	animation_parameters options_anim;
+	parse_arguments_ligne_commande(&options_anim, argc, argv);
+	
+	int total_lignes_message = largeur_boite(options_anim.message, options_anim.largeur_boite_modifie, options_anim.largeur_boite);
+	int pos_y_vache_finale = nb_lignes_boite(options_anim.message, total_lignes_message) + 3;
+	if (options_anim.vitesse_animation > 0) {
+		char* message_anime = malloc(sizeof(char) * strlen(options_anim.message));
+		for (int i=0; i<strlen(options_anim.message); i++) {
+			UPDATE;
+			message_anime[i] = options_anim.message[i];
 
-		if (langue_modifie == 0) {
-			/* langue = {message[i], ' ', '\0'}; */
-			langue[0] = message[i];
+			int longueur_lignes = largeur_boite(message_anime, options_anim.largeur_boite_modifie, options_anim.largeur_boite);
+			int nb_lignes = nb_lignes_boite(message_anime, longueur_lignes);
+
+			char** texte_formate = texte_dans_boite(message_anime, nb_lignes, longueur_lignes, options_anim.allignement);
+			affiche_boite(texte_formate, nb_lignes);
+
+			if (options_anim.langue_modifie == 0) {
+				options_anim.langue[0] = options_anim.message[i];
+			}
+			affiche_vache(options_anim.yeux, options_anim.langue, options_anim.longueur_queue, 9, pos_y_vache_finale);
+
+			for (int j=0; j<nb_lignes; j++) {
+				free(texte_formate[j]);
+			}
+			free(texte_formate);
+
+			wait(options_anim.vitesse_animation);
 		}
-		affiche_vache(yeux, langue, longueur_queue, 9, pos_y_vache_finale);
-
+	} else {  // vitesse <= 0: affiche direct la vache
+		UPDATE;
+		int longueur_lignes = largeur_boite(options_anim.message, options_anim.largeur_boite_modifie, options_anim.largeur_boite);
+		int nb_lignes = nb_lignes_boite(options_anim.message, longueur_lignes);
+		char** texte_formate = texte_dans_boite(options_anim.message, nb_lignes, longueur_lignes, options_anim.allignement);
+		affiche_boite(texte_formate, nb_lignes);
+		affiche_vache(options_anim.yeux, options_anim.langue, options_anim.longueur_queue, 9, pos_y_vache_finale);
 		for (int j=0; j<nb_lignes; j++) {
 			free(texte_formate[j]);
 		}
 		free(texte_formate);
-
-		wait(50);
 	}
 
+	free(options_anim.message);
 	return 0;
 }
