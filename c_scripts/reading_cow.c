@@ -28,7 +28,9 @@
 #define ALLIGNE_DROITE 2
 
 // Styles de boites possibles
+#define TRADITIONEL 0
 #define COMPACT 1
+#define THINK 2
 
 int est_pair(int n) {  // comment ça % existe ?
 	if (n == 0) {
@@ -129,7 +131,7 @@ int nb_lignes_boite(char* texte, int max_longueur_ligne) {
 	int mot_suivant;
 	while (strlen(texte) > 0) {
 		mot_suivant = longueur_mot_suivant(texte);
-		if (longueur_ligne + mot_suivant >= max_longueur_ligne && strlen(texte + sizeof(char) * mot_suivant) > 1) {
+		if (longueur_ligne + mot_suivant >= max_longueur_ligne && strlen(texte + sizeof(char) * mot_suivant) >= 1) {
 			nb_lignes++;
 			longueur_ligne = mot_suivant;
 		} else {
@@ -148,7 +150,7 @@ int ligne_plus_longue(char* texte, int max_longueur_ligne) {
 	int mot_suivant;
 	while (strlen(texte) > 0) {
 		mot_suivant = longueur_mot_suivant(texte);
-		if (longueur_ligne + mot_suivant >= max_longueur_ligne && strlen(texte + sizeof(char) * mot_suivant) > 1) {
+		if (longueur_ligne + mot_suivant >= max_longueur_ligne && strlen(texte + sizeof(char) * mot_suivant) >= 1) {
 			if (longueur_ligne > longueur_max) {
 				longueur_max = longueur_ligne;
 			}
@@ -268,6 +270,43 @@ typedef struct {
 
 void genere_boite(ascii_art_boite* boite, int style_boite, int nb_lignes, int longueur_lignes) {
 	switch (style_boite) {
+		case TRADITIONEL:
+			boite->debut_boite = malloc(sizeof(char) * (longueur_lignes + 4));
+			boite->debut_boite[0] = ' ';
+			for (int i=1; i<longueur_lignes+3; i++) {
+				boite->debut_boite[i] = '_';
+			}
+			boite->debut_boite[longueur_lignes+3] = '\0';
+
+			boite->bordures = malloc(sizeof(char**) * nb_lignes);
+			for (int i=0; i<nb_lignes; i++) {
+				boite->bordures[i] = malloc(sizeof(char*) * 2);  // bordure à gauche et droite
+				for (int j=0; j<2; j++) {
+					boite->bordures[i][j] = malloc(sizeof(char) * 2);
+				}
+			}
+			if (nb_lignes == 1) {
+				strcpy(boite->bordures[0][0], "< ");
+				strcpy(boite->bordures[0][1], " >");
+			} else {
+				strcpy(boite->bordures[0][0], "/ ");
+				strcpy(boite->bordures[0][1], " \\");
+				for (int i=1; i<nb_lignes-1; i++) {
+					strcpy(boite->bordures[i][0], "| ");
+					strcpy(boite->bordures[i][1], " |");
+				}
+				strcpy(boite->bordures[nb_lignes-1][0], "\\ ");
+				strcpy(boite->bordures[nb_lignes-1][1], " /");
+			}
+
+			boite->fin_boite = malloc(sizeof(char) * (longueur_lignes + 4));
+			boite->fin_boite[0] = ' ';
+			for (int i=1; i<longueur_lignes+4; i++) {
+				boite->fin_boite[i] = '-';
+			}
+			boite->fin_boite[longueur_lignes+3] = '\0';
+			break;
+
 		case COMPACT:
 			boite->debut_boite = malloc(sizeof(char) * (longueur_lignes + 3));
 			boite->debut_boite[0] = '+';
@@ -293,6 +332,32 @@ void genere_boite(ascii_art_boite* boite, int style_boite, int nb_lignes, int lo
 			}
 			boite->fin_boite[longueur_lignes+1] = '+';
 			boite->fin_boite[longueur_lignes+2] = '\0';
+			break;
+
+		case THINK:
+			boite->debut_boite = malloc(sizeof(char) * (longueur_lignes + 4));
+			boite->debut_boite[0] = ' ';
+			for (int i=1; i<longueur_lignes+3; i++) {
+				boite->debut_boite[i] = '_';
+			}
+			boite->debut_boite[longueur_lignes+3] = '\0';
+
+			boite->bordures = malloc(sizeof(char**) * nb_lignes);
+			for (int i=0; i<nb_lignes; i++) {
+				boite->bordures[i] = malloc(sizeof(char*) * 2);  // bordure à gauche et droite
+				for (int j=0; j<2; j++) {
+					boite->bordures[i][j] = malloc(sizeof(char) * 2);
+				}
+				strcpy(boite->bordures[i][0], "( ");
+				strcpy(boite->bordures[i][1], " )");
+			}
+
+			boite->fin_boite = malloc(sizeof(char) * (longueur_lignes + 4));
+			boite->fin_boite[0] = ' ';
+			for (int i=1; i<longueur_lignes+4; i++) {
+				boite->fin_boite[i] = '-';
+			}
+			boite->fin_boite[longueur_lignes+3] = '\0';
 			break;
 	}
 }
@@ -359,7 +424,7 @@ void parse_arguments_ligne_commande(animation_parameters* options_anim, int argc
 	options_anim->largeur_boite_modifie = 0;
 	options_anim->allignement = ALLIGNE_GAUCHE;
 	options_anim->vitesse_animation = 50;
-	options_anim->box_style = COMPACT;
+	options_anim->box_style = TRADITIONEL;
 
 	int etat_courant = LIRE_OPTION;
 	int etat_suivant;
@@ -433,8 +498,14 @@ void parse_arguments_ligne_commande(animation_parameters* options_anim, int argc
 				break;
 
 			case BOX_STYLE:
-				if (strcmp(argv[i], "compact") == 0) {
+				if (strcmp(argv[i], "traditionel") == 0) {
+					options_anim->box_style = TRADITIONEL;
+					etat_suivant = LIRE_OPTION;
+				} else if (strcmp(argv[i], "compact") == 0) {
 					options_anim->box_style = COMPACT;
+					etat_suivant = LIRE_OPTION;
+				} else if (strcmp(argv[i], "think") == 0) {
+					options_anim->box_style = THINK;
 					etat_suivant = LIRE_OPTION;
 				} else {
 					printf("Style de boite non valide.\n");
