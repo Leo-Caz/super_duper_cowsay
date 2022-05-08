@@ -99,6 +99,38 @@ void affiche_vache(char* yeux, char* langue, int longueur_queue, int pos_x, int 
 }
 
 
+// fonction copié-collé sur stack-overflow désolé
+// https://stackoverflow.com/questions/32936646/getting-the-string-length-on-utf-8-in-c
+size_t count_utf8_code_points(const char *s) {
+	size_t count = 0;
+	while (*s) {
+		count += (*s++ & 0xC0) != 0x80;
+	}
+	return count;
+}
+
+
+unsigned long taille_premiere_lettre(char* source) {
+	if ((*source & 0xF0) == 0xF0) return 4;
+	if ((*source & 0xE0) == 0xE0) return 3;
+	if ((*source & 0xC0) == 0xC0) return 2;
+	return 1;
+}
+
+
+int longueur_mot_suivant(char* texte) {
+	int longueur = 0;
+	/* for (int i=0; texte[i] != ' ' && texte[i] != '\0'; i++) { */
+	/* 	longueur++; */
+	/* } */
+	while (*texte != ' ' && *texte != '\0') {
+		longueur++;
+		texte += sizeof(char) * taille_premiere_lettre(texte);
+	}
+	return longueur;
+}
+
+
 int mot_plus_long(char* texte) {
 	int max_longueur = 0;
 	int longueur_mot = 0;
@@ -116,22 +148,13 @@ int mot_plus_long(char* texte) {
 }
 
 
-int longueur_mot_suivant(char* texte) {
-	int longueur = 0;
-	for (int i=0; texte[i] != ' ' && texte[i] != '\0'; i++) {
-		longueur++;
-	}
-	return longueur;
-}
-
-
 int nb_lignes_boite(char* texte, int max_longueur_ligne) {
 	int nb_lignes = 1;
 	int longueur_ligne = 0;
 	int mot_suivant;
 	while (strlen(texte) > 0) {
 		mot_suivant = longueur_mot_suivant(texte);
-		if (longueur_ligne + mot_suivant >= max_longueur_ligne && strlen(texte + sizeof(char) * mot_suivant) >= 1) {
+		if (longueur_ligne + mot_suivant >= max_longueur_ligne && count_utf8_code_points(texte + sizeof(char) * mot_suivant) > 1) {
 			nb_lignes++;
 			longueur_ligne = mot_suivant;
 		} else {
@@ -150,7 +173,7 @@ int ligne_plus_longue(char* texte, int max_longueur_ligne) {
 	int mot_suivant;
 	while (strlen(texte) > 0) {
 		mot_suivant = longueur_mot_suivant(texte);
-		if (longueur_ligne + mot_suivant >= max_longueur_ligne && strlen(texte + sizeof(char) * mot_suivant) >= 1) {
+		if (longueur_ligne + mot_suivant >= max_longueur_ligne && count_utf8_code_points(texte + sizeof(char) * mot_suivant) >= 1) {
 			if (longueur_ligne > longueur_max) {
 				longueur_max = longueur_ligne;
 			}
@@ -191,8 +214,9 @@ char* extraire_ligne(char* texte, int max_longueur_ligne) {
 
 
 void allignement_vertical(char* ligne, int max_longueur_ligne, int allignement) {
-	char* espaces = malloc(sizeof(char) * (max_longueur_ligne + 1));
-	int nb_caracteres_ligne = strlen(ligne);
+	int correction_utf8 = strlen(ligne) - count_utf8_code_points(ligne);
+	char* espaces = malloc(sizeof(char) * (max_longueur_ligne + 1 + correction_utf8));
+	int nb_caracteres_ligne = count_utf8_code_points(ligne);
 	int nb_espaces = max_longueur_ligne - nb_caracteres_ligne;
 
 	// Why?!?!?!?!?!
@@ -202,7 +226,7 @@ void allignement_vertical(char* ligne, int max_longueur_ligne, int allignement) 
 
 	switch (allignement) {
 		case ALLIGNE_GAUCHE:
-			for (int i=nb_caracteres_ligne; i<max_longueur_ligne; i++) {
+			for (int i=nb_caracteres_ligne + correction_utf8; i<max_longueur_ligne + correction_utf8; i++) {
 				ligne[i] = ' ';
 			}
 			break;
@@ -212,7 +236,7 @@ void allignement_vertical(char* ligne, int max_longueur_ligne, int allignement) 
 				espaces[i] = ' ';
 			}
 			strcat(espaces, ligne);
-			for (int i=nb_caracteres_ligne + (nb_espaces / 2); i<max_longueur_ligne; i++) {
+			for (int i=nb_caracteres_ligne + correction_utf8 + (nb_espaces / 2); i<max_longueur_ligne + correction_utf8; i++) {
 				espaces[i] = ' ';
 			}
 			strcpy(ligne, espaces);
@@ -243,7 +267,7 @@ char** texte_dans_boite(char* texte, int nb_lignes, int max_longueur_lignes, int
 
 
 int calcule_largeur_boite(char* texte, int longueur_modifie, int longueur_defaut) {
-	int longueur_texte = strlen(texte);
+	int longueur_texte = count_utf8_code_points(texte);
 	int mot_long_max = mot_plus_long(texte);
 	int largeur_boite_finale;
 	if (longueur_modifie == 1) {
@@ -364,7 +388,7 @@ void genere_boite(ascii_art_boite* boite, int style_boite, int nb_lignes, int lo
 
 
 void affiche_boite(char** texte_par_lignes, int nb_lignes, int style_boite) {
-	int longueur_lignes = strlen(texte_par_lignes[0]);
+	int longueur_lignes = count_utf8_code_points(texte_par_lignes[0]);
 	ascii_art_boite boite;
 	genere_boite(&boite, style_boite, nb_lignes, longueur_lignes);
 
@@ -533,6 +557,7 @@ int main(int argc, char* argv[]) {
 	animation_parameters options_anim;
 	parse_arguments_ligne_commande(&options_anim, argc, argv);
 	
+	/* options_anim.message[strlen(options_anim.message)] = '\0'; */
 	int total_lignes_message = calcule_largeur_boite(options_anim.message, options_anim.largeur_boite_modifie, options_anim.largeur_boite);
 	int pos_y_vache_finale = nb_lignes_boite(options_anim.message, total_lignes_message) + 3;
 	if (options_anim.vitesse_animation > 0) {
@@ -572,6 +597,7 @@ int main(int argc, char* argv[]) {
 		free(texte_formate);
 	}
 
+	printf("%lu\n", count_utf8_code_points("bité"));
 	free(options_anim.message);
 	return 0;
 }
